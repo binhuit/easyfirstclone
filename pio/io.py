@@ -1,5 +1,5 @@
 from yutils import tokenize_blanks
-
+from isprojective import is_projective
 def to_tok(line):
    if line[4]=="_": line[4]=line[3]
    return {"parent": int(line[-4]),
@@ -21,5 +21,4 @@ def conll_to_sents(file):
     """
     for sent in tokenize_blanks(file):
         yield [to_tok(l) for l in sent]
-
 
