@@ -1,6 +1,19 @@
 from moduleloader import load_module
 import os
 
+class Parser:
+    def __init__(self, scorer, featExt, oracle = None):
+        self.scorer = scorer
+        self.featExt = featExt
+        self.oracle = oracle
+
+    def train(self, sent):
+        pass
+
+
+
+
+
 class Model:
     def __init__(self, featuresFile, weightFile, iter = None):
         self._featuresFile = featuresFile
