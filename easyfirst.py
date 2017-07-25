@@ -25,7 +25,8 @@ class Model:
         :return: Model object 
         """
         lines = file(filename).readlines()
-        dirname = os.path.dirname(filename)
+        # dirname = os.path.dirname(filename)
+        dirname = os.path.curdir
         featuresFile = os.path.join(dirname,lines[0].strip())
         weightFile = os.path.join(dirname,lines[1].strip())
         return cls(featuresFile, weightFile, iter)
