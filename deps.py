@@ -31,7 +31,7 @@ class DependenciesCollection:
             cid = child['id']
             del self._parents[cid]
             self._childs[pid].remove(child)
-            children = sorted(self._childs[parent['id']])
+            children = sorted(self._childs[parent['id']]) # Right
             if children:
                 if child == self.left_child(parent):
                     if children[0] < parent['id']:

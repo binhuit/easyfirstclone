@@ -4,7 +4,7 @@ from optparse import OptionParser
 from easyfirst import Model
 from pio import io
 from isprojective import is_projective
-from deps2 import DependenciesCollection
+from deps import DependenciesCollection
 usage = "usage: %prog -o model -f features [option] train_file [dev_file]"
 parser = OptionParser(usage)
 parser.add_option("-o","--model",dest="model_file")
@@ -30,14 +30,12 @@ train = list(io.conll_to_sents(file(TRAIN_FILE)))
 print len(train)
 train = [s for s in train if is_projective(s)]
 print len(train)
-sents = iter(train)
-next(sents)
-next(sents)
-sent = next(sents)
-tok1 = sent[0]
-tok2 = sent[1]
-tok3 = sent[2]
+test = train[9]
+tokens = []
+for tok in test:
+    tokens.append(tok)
 deps = DependenciesCollection()
-deps.add(tok1,tok3)
-deps.add(tok1,tok2)
-print deps.children(tok1)
+deps.add(tokens[2],tokens[1])
+deps.add(tokens[2],tokens[0])
+deps.add(tokens[3],tokens[2])
+print deps.children(tokens[2])
