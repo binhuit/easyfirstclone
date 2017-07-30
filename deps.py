@@ -20,7 +20,7 @@ class DependenciesCollection:
         rc = self.right_child(parent)
         if (not rc) or child['id'] > rc['id']:
             self._right_child[parent['id']] = child
-        print "adding",parent['id'],'->',child['id']
+        # print "adding",parent['id'],'->',child['id']
 
     def remove(self, parent, child):
         # kiem tra xem co trong deps khong
@@ -65,3 +65,44 @@ class DependenciesCollection:
     def children(self, parent):
         if parent is None: return None
         return self._childs[parent['id']]
+
+    def get_depth(self,tok):
+        if not self.children(tok):
+            return 1
+        else:
+            return max([self.get_depth(c) for c in self.children(tok)]) + 1
+
+    def sibling(self, token, i=0):
+        if not token: return None
+        parent = self._parents.get(token["id"],None)
+        if parent: parent = parent["id"]
+        self._childs[parent].sort(key = lambda b:b["id"])
+        siblings = self.children(parent)
+        index = siblings.index(token)
+        if 0 < (index+i) < len(siblings):
+            return siblings[index+i]
+        else:
+            return None
+
+    def span(self, tok):
+        return self.right_border(tok) - self.left_border(tok)
+
+    def parent(self, tok):
+        return self._parents[tok['id']] if tok['id'] in self._parents else None
+
+    def right_border(self, tok):
+        r = self.right_child(tok)
+        if not r:
+            return int(tok['id'])
+        else:
+            return self.right_border(r)
+
+    def left_border(self, tok):
+        l = self.left_child(tok)
+        if not l:
+            return int(tok['id'])
+        else:
+            return self.left_border(l)
+
+
+

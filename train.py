@@ -1,7 +1,7 @@
 import sys
 
 from optparse import OptionParser
-from easyfirst import Model
+from easyfirst import Model, train
 from pio import io
 from isprojective import is_projective
 from deps import DependenciesCollection
@@ -23,19 +23,12 @@ DEV_FILE = args[1] if len(args)>1 else None
 MODEL = opts.model_file
 FEATURES = opts.features_file
 
-# model = Model(FEATURES,"%s.weights" % MODEL)
-# model.save("%s.model" % MODEL)
+model = Model(FEATURES,"%s.weights" % MODEL)
+model.save("%s.model" % MODEL)
 
-train = list(io.conll_to_sents(file(TRAIN_FILE)))
-print len(train)
-train = [s for s in train if is_projective(s)]
-print len(train)
-test = train[9]
-tokens = []
-for tok in test:
-    tokens.append(tok)
-deps = DependenciesCollection()
-deps.add(tokens[2],tokens[1])
-deps.add(tokens[2],tokens[0])
-deps.add(tokens[3],tokens[2])
-print deps.children(tokens[2])
+train_sents = list(io.conll_to_sents(file(TRAIN_FILE)))
+print len(train_sents)
+train_sents = [s for s in train_sents if is_projective(s)]
+print len(train_sents)
+dev = []
+train(train_sents, model, dev, opts.iters,save_every=opts.save_every)
