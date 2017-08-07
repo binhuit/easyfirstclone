@@ -3,6 +3,7 @@ from deps import DependenciesCollection
 from common import ROOT
 from collections import defaultdict
 from ml.ml import MulticlassModel, MultitronParameters
+from itertools import izip,islice
 import os
 import sys
 
@@ -33,45 +34,50 @@ class Parser:
         self.featExt = featExt
         self.oracle = oracle
 
-    def parse(self, sent):
-        sent = [ROOT] + sent
-        parsed = sent[:]
+    def parse(self, sent):  # {{{
         deps = DependenciesCollection()
-        fcache = {}
+        parsed = sent[:]
+        parsed = [ROOT] + parsed
+        sent = [ROOT] + sent
         scache = {}
-        while len(parsed) > 1:
-            scored = []
-            for i,(tok1,tok2) in enumerate(zip(parsed,parsed[1:])):
-                tid = tok1["id"]
-                if tid in fcache:
-                    feats = fcache[tid]
-                else:
-                    feats = self.featExt.extract(parsed,deps,i,sent)
-                    fcache[tid] = feats
+        fe = self.featExt.extract
+        gscore = self.scorer.get_scores
+        lp = len(parsed)
+        while lp > 1:
+            # find best action
+            _pairs = []
+            for i, (tok1, tok2) in enumerate(izip(parsed, islice(parsed, 1, None))):
+                tid = tok1['id']
                 if tid in scache:
-                    s1,s2 = scache[tid]
+                    s1, s2 = scache[tid]
                 else:
-                    score = self.scorer.get_scores(feats)
-                    s1 = score[0]
-                    s2 = score[1]
-                    scache[tid] = s1,s2
-                scored.append((s1,0,tok1,tok2))
-                scored.append((s2,1,tok2,tok1))
-            scored = sorted(scored,key=lambda (s,cls,p,c):-s)
-            best, cls, parent, child = scored[0]
-            i = parsed.index(parent)
+                    feats = fe(parsed, deps, i, sent)
+                    scr = gscore(feats)
+                    s1 = scr[0]
+                    s2 = scr[1]
+                    scache[tid] = s1, s2
+
+                _pairs.append((s1, tok1, tok2, i + 1))
+                _pairs.append((s2, tok2, tok1, i))
+
+            best, c, p, locidx = max(_pairs)
+            # remove the neighbours of parent from the cache
+            i = locidx
             frm = i - 4
             to = i + 4
             if frm < 0: frm = 0
-            if to >= len(parsed): to = len(parsed) - 1
+            if to >= lp: to = lp - 1
             for tok in parsed[frm:to]:
                 try:
                     del scache[tok['id']]
                 except:
                     pass
-            deps.add(parent,child)
-            parsed.remove(child)
+            # apply action
+            deps.add(p, c)
+            parsed.remove(c)
+            lp -= 1
         return deps
+
 
     def train(self, sent):
         updates = 0
