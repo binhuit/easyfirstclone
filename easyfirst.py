@@ -33,6 +33,46 @@ class Parser:
         self.featExt = featExt
         self.oracle = oracle
 
+    def parse(self, sent):
+        sent = [ROOT] + sent
+        parsed = sent[:]
+        deps = DependenciesCollection()
+        fcache = {}
+        scache = {}
+        while len(parsed) > 1:
+            scored = []
+            for i,(tok1,tok2) in enumerate(zip(parsed,parsed[1:])):
+                tid = tok1["id"]
+                if tid in fcache:
+                    feats = fcache[tid]
+                else:
+                    feats = self.featExt.extract(parsed,deps,i,sent)
+                    fcache[tid] = feats
+                if tid in scache:
+                    s1,s2 = scache[tid]
+                else:
+                    score = self.scorer.get_scores(feats)
+                    s1 = score[0]
+                    s2 = score[1]
+                    scache[tid] = s1,s2
+                scored.append((s1,0,tok1,tok2))
+                scored.append((s2,1,tok2,tok1))
+            scored = sorted(scored,key=lambda (s,cls,p,c):-s)
+            best, cls, parent, child = scored[0]
+            i = parsed.index(parent)
+            frm = i - 4
+            to = i + 4
+            if frm < 0: frm = 0
+            if to >= len(parsed): to = len(parsed) - 1
+            for tok in parsed[frm:to]:
+                try:
+                    del scache[tok['id']]
+                except:
+                    pass
+            deps.add(parent,child)
+            parsed.remove(child)
+        return deps
+
     def train(self, sent):
         updates = 0
         sent = [ROOT] + sent
@@ -58,6 +98,7 @@ class Parser:
                     scores = self.scorer.get_scores(feats)
                     s1 = scores[0]
                     s2 = scores[1]
+                    scache[tid] = s1, s2
                 scored.append((s1, 0, feats, tok1, tok2))
                 scored.append((s2, 1, feats, tok2, tok1))
             # xap xep tu lon den nho, -s
@@ -154,6 +195,59 @@ def train(sents, model, dev=None, ITERS=20, save_every=None):
             #     print "testing dev"
             #     print "\nscore: %s" % (test(dev, model, ITER, quiet=True),)
         parser.scorer.dump_fin(file(model.weightsFile("FINAL"), "w"))
+
+def parse(sents, model, iter="FINAL"):
+    fext = model.featureExtractor()
+    m = MulticlassModel(model.weightsFile(iter))
+    parser = Parser(m, fext, Oracle())
+    for sent in sents:
+        deps = parser.parse(sent)
+        sent = deps.annotate(sent)
+        for tok in sent:
+            print tok['id'], tok['form'], "_", tok['tag'], tok['tag'], "_", tok['pparent'], "_ _ _"
+        print
+
+def test(sents, model, iter="FINAL", quiet=False, ignore_punc=False):
+    fext = model.featureExtractor()
+    import time
+    good = 0.0
+    bad = 0.0
+    complete = 0.0
+    m = MulticlassModel(model.weightsFile(iter))
+    start = time.time()
+    parser = Parser(m, fext, Oracle())
+    scores = []
+    for sent in sents:
+        sent_good = 0.0
+        sent_bad = 0.0
+        no_mistakes = True
+        if not quiet:
+            print "@@@", good / (good + bad + 1)
+        deps = parser.parse(sent)
+        sent = deps.annotate(sent)
+        for tok in sent:
+            if not quiet: print tok['id'], tok['form'], "_", tok['tag'], tok['tag'], "_", tok['pparent'], "_ _ _"
+            if ignore_punc and tok['form'][0] in "'`,.-;:!?{}": continue
+            if tok['parent'] == tok['pparent']:
+                good += 1
+                sent_good += 1
+            else:
+                bad += 1
+                sent_bad += 1
+                no_mistakes = False
+        if not quiet: print
+        if no_mistakes: complete += 1
+        scores.append((sent_good / (sent_good + sent_bad)))
+
+    if not quiet:
+        print "time(seconds):", time.time() - start
+        print "num sents:", len(sents)
+        print "complete:", complete / len(sents)
+        print "macro:", sum(scores) / len(scores)
+        print "micro:", good / (good + bad)
+    return good / (good + bad), complete / len(sents)
+
+
 
 
 

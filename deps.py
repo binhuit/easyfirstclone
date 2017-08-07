@@ -1,5 +1,5 @@
 from collections import defaultdict
-
+import sys
 class DependenciesCollection:
     def __init__(self):
         self.deps = set()
@@ -103,6 +103,23 @@ class DependenciesCollection:
             return int(tok['id'])
         else:
             return self.left_border(l)
+
+    def annotate_allow_none(self, sent):
+        for tok in sent:
+            try:  # @TODO understand the reason for this exception
+                tok['pparent'] = self._parents[tok['id']]['id']
+            except KeyError:
+                tok['pparent'] = -1
+        return sent
+
+    def annotate(self, sent):
+        for tok in sent:
+            try:  # @TODO understand the reason for this exception
+                tok['pparent'] = self._parents[tok['id']]['id']
+            except KeyError:
+                sys.stderr.write("defaulting to root-parent")
+                tok['pparent'] = 0
+        return sent
 
 
 

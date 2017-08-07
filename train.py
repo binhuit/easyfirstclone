@@ -1,7 +1,7 @@
 import sys
 
 from optparse import OptionParser
-from easyfirst import Model, train
+from easyfirst import Model, train, test
 from pio import io
 from isprojective import is_projective
 from deps import DependenciesCollection
@@ -30,5 +30,5 @@ train_sents = list(io.conll_to_sents(file(TRAIN_FILE)))
 print len(train_sents)
 train_sents = [s for s in train_sents if is_projective(s)]
 print len(train_sents)
-dev = []
+dev = [s for s in io.conll_to_sents(file(DEV_FILE))] if DEV_FILE else []
 train(train_sents, model, dev, opts.iters,save_every=opts.save_every)
