@@ -40,6 +40,7 @@ class Parser:
         parsed = [ROOT] + parsed
         sent = [ROOT] + sent
         scache = {}
+        fcache = {}
         fe = self.featExt.extract
         gscore = self.scorer.get_scores
         lp = len(parsed)
@@ -48,10 +49,14 @@ class Parser:
             _pairs = []
             for i, (tok1, tok2) in enumerate(izip(parsed, islice(parsed, 1, None))):
                 tid = tok1['id']
+                if tid in fcache:
+                    feats = fcache[tid]
+                else:
+                    feats = self.featExt.extract(parsed,deps,i,sent)
+                    fcache[tid] = feats
                 if tid in scache:
                     s1, s2 = scache[tid]
                 else:
-                    feats = fe(parsed, deps, i, sent)
                     scr = gscore(feats)
                     s1 = scr[0]
                     s2 = scr[1]
@@ -69,6 +74,7 @@ class Parser:
             if to >= lp: to = lp - 1
             for tok in parsed[frm:to]:
                 try:
+                    del fcache[tok['id']]
                     del scache[tok['id']]
                 except:
                     pass
