@@ -3,10 +3,12 @@ from deps import DependenciesCollection
 from common import ROOT
 from collections import defaultdict
 from ml.ml import MulticlassModel, MultitronParameters
+from perceptron.Perceptron import Perceptron
 from itertools import izip,islice
 import os
 import sys
-
+from feat_record import feat_record
+feat_track = feat_record()
 class Oracle:  # {{{
     def __init__(self):
         self.sent = None
@@ -119,6 +121,7 @@ class Parser:
 
             if self.oracle.allow_connection(sent, deps, p, c):
                 # remove the neighbours of parent from the cache
+                feat_track.add(s, cls, f, c, p)
                 i = parsed.index(p)
                 frm = i - 4
                 to = i + 4
@@ -133,6 +136,7 @@ class Parser:
                 ###
                 deps.add(p, c)
                 parsed = [x for x in parsed if x != c]
+
             else:
                 scache = {}  # clear the cache -- numbers changed..
                 # find best allowable pair
@@ -149,6 +153,7 @@ class Parser:
                     print " ".join([x['form'] for x in sent])
                     print " ".join([x['form'] for x in parsed])
                     return
+
 
 
 class Model:
@@ -190,7 +195,8 @@ class Model:
 def train(sents, model, dev=None, ITERS=20, save_every=None):
     fext = model.featureExtractor()
     oracle = Oracle()
-    scorer = MultitronParameters(2)
+    # scorer = MultitronParameters(2)
+    scorer = Perceptron(2,5000)
     parser = Parser(scorer, fext, oracle)
     for ITER in xrange(1, ITERS + 1):
         print "Iteration ",ITER,"[",
@@ -207,10 +213,12 @@ def train(sents, model, dev=None, ITERS=20, save_every=None):
             #     print "testing dev"
             #     print "\nscore: %s" % (test(dev, model, ITER, quiet=True),)
         parser.scorer.dump_fin(file(model.weightsFile("FINAL"), "w"))
+        feat_track.save("feat_multi")
 
 def parse(sents, model, iter="FINAL"):
     fext = model.featureExtractor()
-    m = MulticlassModel(model.weightsFile(iter))
+    # m = MulticlassModel(model.weightsFile(iter))
+    m = Perceptron.load(model.weightsFile(iter))
     parser = Parser(m, fext, Oracle())
     for sent in sents:
         deps = parser.parse(sent)
@@ -226,6 +234,7 @@ def test(sents, model, iter="FINAL", quiet=False, ignore_punc=False):
     bad = 0.0
     complete = 0.0
     m = MulticlassModel(model.weightsFile(iter))
+    # m = Perceptron.load(model.weightsFile(iter))
     start = time.time()
     parser = Parser(m, fext, Oracle())
     scores = []
