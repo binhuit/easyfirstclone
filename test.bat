@@ -1,0 +1,1 @@
+python parse.py -m Model\model_clone.model --eval data\fold_test_1.conll > dep_replace
