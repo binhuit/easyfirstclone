@@ -122,9 +122,11 @@ class Perceptron:
         return perceptron
 
 class MultiClass:
-    def __init__(self):
+    def __init__(self,fname):
         self._paramaters = None
-        self.hash = None
+        self.hash = Hash()
+        self.load(fname)
+
 
     def get_scores(self,features):
         indexes, values = self.vectorizer(features)
@@ -144,12 +146,15 @@ class MultiClass:
         values = np.asarray(values)
         return indexes,values
 
-    @classmethod
-    def load(cls,fname):
-        package = pickle.load(file(fname))
-        hash = package['hash']
-        model = package['model']
-        classifier = cls()
-        classifier.hash = hash
-        classifier._paramaters = (model.now - model._last_updated)*model._paramaters/model.now
-        return classifier
+    def load(self,fname):
+        model_file = open(fname,"r")
+        n_class = int(model_file.readline())
+        n_feats = int(model_file.readline())
+        self._paramaters = np.zeros((n_class,n_feats))
+        for line in model_file:
+            line = line.split()
+            feat = line[0]
+            feat_id = self.hash.get_and_add(feat)
+            for id,value in enumerate(line[1:]):
+                self._paramaters[id][feat_id] = float(value)
+

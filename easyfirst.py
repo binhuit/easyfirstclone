@@ -3,7 +3,7 @@ from deps import DependenciesCollection
 from common import ROOT
 from collections import defaultdict
 from ml.ml import MulticlassModel, MultitronParameters
-from perceptron.Perceptron import Perceptron
+from perceptron.Perceptron import Perceptron, MultiClass
 from itertools import izip,islice
 import os
 import sys
@@ -233,8 +233,8 @@ def test(sents, model, iter="FINAL", quiet=False, ignore_punc=False):
     good = 0.0
     bad = 0.0
     complete = 0.0
-    m = MulticlassModel(model.weightsFile(iter))
-    # m = Perceptron.load(model.weightsFile(iter))
+    # m = MulticlassModel(model.weightsFile(iter))
+    m = MultiClass(model.weightsFile(iter))
     start = time.time()
     parser = Parser(m, fext, Oracle())
     scores = []
