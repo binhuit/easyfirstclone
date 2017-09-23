@@ -1,6 +1,7 @@
 import numpy as np
 import pickle
 from ml.ml import MulticlassModel, MultitronParameters
+from collections import defaultdict
 import os
 class Hash:
     def __init__(self):
@@ -58,22 +59,19 @@ class Perceptron:
 
     def vectorizer(self, features):
         new_feat = 0
-        feat_dict = {}
+        feat_dict = defaultdict(int)
         for f in features:
             h = self.hash.get_and_add(f)
             if h > self.feat_last_index:
                 new_feat += 1
-            try:
-                feat_dict[h] += 1
-            except KeyError:
-                feat_dict[h] = 1
-        if new_feat > 0:
-            extended_paramater = np.zeros((self.n,new_feat))
-            self._paramaters = np.concatenate((self._paramaters,extended_paramater),axis=1)
-            self._a = np.concatenate((self._a,extended_paramater),axis=1)
-            extended_paramater.fill(self.now)
-            self._last_updated = np.concatenate((self._last_updated,extended_paramater),axis=1)
-            self.feat_last_index += new_feat
+            feat_dict[h] += 1
+
+        extended_paramater = np.zeros((self.n,new_feat))
+        self._paramaters = np.concatenate((self._paramaters,extended_paramater),axis=1)
+        self._a = np.concatenate((self._a,extended_paramater),axis=1)
+        extended_paramater.fill(self.now)
+        self._last_updated = np.concatenate((self._last_updated,extended_paramater),axis=1)
+        self.feat_last_index += new_feat
         x = [(k, v) for k, v in feat_dict.iteritems()]
         indexes, values = zip(*x)
         indexes = np.asarray(indexes)
@@ -101,14 +99,14 @@ class Perceptron:
         # pickle.dump(o,out)
         weight = (self.now - self._last_updated)*self._paramaters/self.now
         out.write(str(self.n)+'\n')
-        out.write(str(self.feat_last_index+1)+'\n')
         feat_hash = self.hash.get_hash()
         for key, value in feat_hash.items():
-            column = [str(w) for w in weight[:,value].tolist()]
-            line = [key] + column
-            line = ' '.join(line)
-            line += '\n'
-            out.write(line)
+            if not np.all(weight[:,value]==0.0):
+                column = [str(w) for w in weight[:,value].tolist()]
+                line = [key] + column
+                line = ' '.join(line)
+                line += '\n'
+                out.write(line)
 
 
     @classmethod

@@ -8,7 +8,6 @@ from itertools import izip,islice
 import os
 import sys
 from feat_record import feat_record
-feat_track = feat_record()
 class Oracle:  # {{{
     def __init__(self):
         self.sent = None
@@ -121,7 +120,6 @@ class Parser:
 
             if self.oracle.allow_connection(sent, deps, p, c):
                 # remove the neighbours of parent from the cache
-                feat_track.add(s, cls, f, c, p)
                 i = parsed.index(p)
                 frm = i - 4
                 to = i + 4
@@ -195,8 +193,8 @@ class Model:
 def train(sents, model, dev=None, ITERS=20, save_every=None):
     fext = model.featureExtractor()
     oracle = Oracle()
-    # scorer = MultitronParameters(2)
-    scorer = Perceptron(2,5000)
+    scorer = MultitronParameters(2)
+    # scorer = Perceptron(2,5000)
     parser = Parser(scorer, fext, oracle)
     for ITER in xrange(1, ITERS + 1):
         print "Iteration ",ITER,"[",
@@ -213,12 +211,11 @@ def train(sents, model, dev=None, ITERS=20, save_every=None):
             #     print "testing dev"
             #     print "\nscore: %s" % (test(dev, model, ITER, quiet=True),)
         parser.scorer.dump_fin(file(model.weightsFile("FINAL"), "w"))
-        feat_track.save("feat_multi")
 
 def parse(sents, model, iter="FINAL"):
     fext = model.featureExtractor()
     # m = MulticlassModel(model.weightsFile(iter))
-    m = Perceptron.load(model.weightsFile(iter))
+    m = MultiClass(model.weightsFile(iter))
     parser = Parser(m, fext, Oracle())
     for sent in sents:
         deps = parser.parse(sent)
