@@ -194,7 +194,7 @@ def train(sents, model, dev=None, ITERS=20, save_every=None):
     fext = model.featureExtractor()
     oracle = Oracle()
     scorer = MultitronParameters(2)
-    # scorer = Perceptron(2,5000)
+    scorer = Perceptron(2,5000)
     parser = Parser(scorer, fext, oracle)
     for ITER in xrange(1, ITERS + 1):
         print "Iteration ",ITER,"[",

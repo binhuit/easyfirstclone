@@ -65,13 +65,13 @@ class Perceptron:
             if h > self.feat_last_index:
                 new_feat += 1
             feat_dict[h] += 1
-
-        extended_paramater = np.zeros((self.n,new_feat))
-        self._paramaters = np.concatenate((self._paramaters,extended_paramater),axis=1)
-        self._a = np.concatenate((self._a,extended_paramater),axis=1)
-        extended_paramater.fill(self.now)
-        self._last_updated = np.concatenate((self._last_updated,extended_paramater),axis=1)
-        self.feat_last_index += new_feat
+        if new_feat>0:
+            extended_paramater = np.zeros((self.n,new_feat))
+            self._paramaters = np.concatenate((self._paramaters,extended_paramater),axis=1)
+            self._a = np.concatenate((self._a,extended_paramater),axis=1)
+            extended_paramater.fill(self.now)
+            self._last_updated = np.concatenate((self._last_updated,extended_paramater),axis=1)
+            self.feat_last_index += new_feat
         x = [(k, v) for k, v in feat_dict.iteritems()]
         indexes, values = zip(*x)
         indexes = np.asarray(indexes)
@@ -99,6 +99,8 @@ class Perceptron:
         # pickle.dump(o,out)
         weight = (self.now - self._last_updated)*self._paramaters/self.now
         out.write(str(self.n)+'\n')
+        b = len(np.where(weight.any(axis=0))[0])
+        out.write(str(b)+'\n')
         feat_hash = self.hash.get_hash()
         for key, value in feat_hash.items():
             if not np.all(weight[:,value]==0.0):
