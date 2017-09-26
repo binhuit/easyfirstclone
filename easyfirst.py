@@ -5,9 +5,60 @@ from collections import defaultdict
 from ml.ml import MulticlassModel, MultitronParameters
 from perceptron.Perceptron import Perceptron, MultiClass
 from itertools import izip,islice
+from operator import itemgetter
+import copy
 import os
 import sys
 from feat_record import feat_record
+
+class Beam:
+    def __init__(self,width=1):
+        self.max_width = width
+        self.beam = []
+    def add_to_beam(self,score,child,parent,locidx,deps,parsed,fcache,scache,features):
+        allow_to_add = False
+        if len(self.beam) < self.max_width:
+            allow_to_add = True
+        else:
+            if score > self.beam[-1]['score']:
+                allow_to_add = True
+        if allow_to_add:
+            parsed = copy.deepcopy(parsed)
+            fcache = copy.deepcopy(fcache)
+            scache = copy.deepcopy(scache)
+            deps = copy.deepcopy(deps)
+            lp = len(parsed)
+            # remove the neighbours of parent from the cache
+            i = locidx
+            frm = i - 4
+            to = i + 4
+            if frm < 0: frm = 0
+            if to >= lp: to = lp - 1
+            for tok in parsed[frm:to]:
+                try:
+                    del fcache[tok['id']]
+                    del scache[tok['id']]
+                except:
+                    pass
+            # apply action
+            deps.add(parent, child)
+            parsed.remove(child)
+            new_state = {
+            "scache": scache,
+            "fcache": fcache,
+            "deps":deps,
+            "parsed":parsed,
+            "features":features,
+            "score":score
+            }
+            self.beam.append(new_state)
+            self.beam = sorted(self.beam,key=itemgetter('score'),reverse=True)
+            if len(self.beam) > self.max_width:
+                self.beam = self.beam[:self.max_width]
+
+    def get_beams(self):
+        return self.beam
+
 class Oracle:  # {{{
     def __init__(self):
         self.sent = None
@@ -30,10 +81,11 @@ class Oracle:  # {{{
 
 
 class Parser:
-    def __init__(self, scorer, featExt, oracle=None):
+    def __init__(self, scorer, featExt, oracle=None, beam_width=1):
         self.scorer = scorer
         self.featExt = featExt
         self.oracle = oracle
+        self.beam_width = beam_width
 
     def parse(self, sent):  # {{{
         deps = DependenciesCollection()
@@ -85,6 +137,51 @@ class Parser:
             lp -= 1
         return deps
 
+    def beam_parse(self, sent):  # {{{
+        deps = DependenciesCollection()
+        parsed = sent[:]
+        parsed = [ROOT] + parsed
+        sent = [ROOT] + sent
+        fe = self.featExt.extract
+        gscore = self.scorer.get_scores
+        lp = len(parsed)
+        init_state = {
+            "scache": {},
+            "fcache": {},
+            "deps":deps,
+            "parsed":parsed,
+            "features":[],
+            "score":0
+        }
+        global_beam = [init_state]
+        for x in range(lp-1):
+            beam = Beam(self.beam_width)
+            for state in global_beam:
+                lc_parsed = state['parsed']
+                lc_fcache = state['fcache']
+                lc_scache = state['scache']
+                lc_deps = state['deps']
+                for i, (tok1, tok2) in enumerate(izip(lc_parsed, islice(lc_parsed, 1, None))):
+                    tid = tok1['id']
+                    if tid in lc_fcache:
+                        feats = lc_fcache[tid]
+                    else:
+                        feats = fe(lc_parsed,lc_deps,i,sent)
+                        lc_fcache[tid] = feats
+                    # feats += state['features']
+                    if tid in lc_scache:
+                        s1,s2 = lc_scache[tid]
+                    else:
+                        scr = gscore(feats)
+                        s1 = scr[0]
+                        s2 = scr[1]
+                        lc_scache[tid] = s1,s2
+                    beam.add_to_beam(s1,tok1,tok2,i+1,lc_deps,lc_parsed,lc_fcache,lc_scache,feats)
+                    beam.add_to_beam(s2, tok2, tok1, i, lc_deps, lc_parsed, lc_fcache, lc_scache,feats)
+
+            global_beam = beam.get_beams()
+
+        return global_beam[-1]["deps"]
 
     def train(self, sent):
         updates = 0
@@ -190,12 +287,12 @@ class Model:
         if iter is None: iter = self._iter
         return "%s.%s" % (self._weightFile, iter)
 
-def train(sents, model, dev=None, ITERS=20, save_every=None):
+def train(sents, model, dev=None, ITERS=20, save_every=None, beam_width=1):
     fext = model.featureExtractor()
     oracle = Oracle()
     scorer = MultitronParameters(2)
-    scorer = Perceptron(2,5000)
-    parser = Parser(scorer, fext, oracle)
+    # scorer = Perceptron(2,5000)
+    parser = Parser(scorer, fext, oracle, beam_width)
     for ITER in xrange(1, ITERS + 1):
         print "Iteration ",ITER,"[",
         for i, sent in enumerate(sents):
@@ -212,11 +309,11 @@ def train(sents, model, dev=None, ITERS=20, save_every=None):
             #     print "\nscore: %s" % (test(dev, model, ITER, quiet=True),)
         parser.scorer.dump_fin(file(model.weightsFile("FINAL"), "w"))
 
-def parse(sents, model, iter="FINAL"):
+def parse(sents, model, iter="FINAL", beam_width=1):
     fext = model.featureExtractor()
-    # m = MulticlassModel(model.weightsFile(iter))
-    m = MultiClass(model.weightsFile(iter))
-    parser = Parser(m, fext, Oracle())
+    m = MulticlassModel(model.weightsFile(iter))
+    # m = MultiClass(model.weightsFile(iter))
+    parser = Parser(m, fext, Oracle(), beam_width)
     for sent in sents:
         deps = parser.parse(sent)
         sent = deps.annotate(sent)
@@ -224,16 +321,16 @@ def parse(sents, model, iter="FINAL"):
             print tok['id'], tok['form'], "_", tok['tag'], tok['tag'], "_", tok['pparent'], "_ _ _"
         print
 
-def test(sents, model, iter="FINAL", quiet=False, ignore_punc=False):
+def test(sents, model, iter="FINAL", quiet=False, ignore_punc=False,beam_width=1):
     fext = model.featureExtractor()
     import time
     good = 0.0
     bad = 0.0
     complete = 0.0
-    # m = MulticlassModel(model.weightsFile(iter))
-    m = MultiClass(model.weightsFile(iter))
+    m = MulticlassModel(model.weightsFile(iter))
+    # m = MultiClass(model.weightsFile(iter))
     start = time.time()
-    parser = Parser(m, fext, Oracle())
+    parser = Parser(m, fext, Oracle(),beam_width)
     scores = []
     for sent in sents:
         sent_good = 0.0
