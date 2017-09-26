@@ -15,13 +15,13 @@
 ##    You should have received a copy of the GNU General Public License
 ##    along with easyfirst.  If not, see <http://www.gnu.org/licenses/>.
 
-PAD={'dform':'__PAD__','ctag':'__PAD__','form':"__PAD__",'tag':'__PAD__','id':-1,'parent':-1} # unify this location
+PAD={'dform':'__PAD__','ctag':'__PAD__','form':"__PAD__",'tag':'__PAD__','id':-1,'parent':-1,'extra':'__PAD__'} # unify this location
 PADEND={'dform':'__PADE__','ctag':'__PADE__','form':"__PADE__",'tag':'__PADE__','id':-1,'parent':-1} # unify this location
 PADSTART={'dform':'__PADS__','ctag':'__PADS__','form':"__PADS__",'tag':'__PADS__','id':-1,'parent':-1} # unify this location
 PADMID={'dform':'__PADM__','ctag':'__PADM__','form':"__PADM__",'tag':'__PADM__','id':-1,'parent':-1} # unify this location
 NOPARENT={'parent':-1,'id':-1,'tag':'NOPARENT','ctag':'NOPARENT','form':'_NOPARENT_','dform':'NOPARENT'}     # unify this location
 
-ROOT={'parent':-1,'prel':'--','id':0,'tag':'ROOT','ctag':'ROOT','form':'_ROOT_','dform':'ROOT'}     # unify this location
+ROOT={'parent':-1,'prel':'--','id':0,'tag':'ROOT','ctag':'ROOT','form':'_ROOT_','dform':'ROOT','extra':'root'}     # unify this location
 
 ### Data / structures #{{{
 
